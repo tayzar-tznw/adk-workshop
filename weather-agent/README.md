@@ -26,6 +26,7 @@ weather-agent/
 │   ├── shared_libraries/    # Shared code and utilities
 │   └── tools/               # Tool implementations
 ├── deployment/              # Deployment-related files
+├── examples/                # Some sample codes to undertand what weather agent can do
 ├── tests/                   # Test files
 ├── eval/                    # Evaluation files
 ├── pyproject.toml           # Project configuration
