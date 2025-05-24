@@ -76,8 +76,8 @@ def deploy_agent():
     remote_agent = agent_engines.create(
         app,
         requirements=[
-            "google-adk (==0.5.0)",
-            "google-cloud-aiplatform[agent_engines] (==1.94.0)",
+            "google-adk (==1.1.0)",
+            "google-cloud-aiplatform[agent_engines] (==1.95.0)",
             "google-genai (>=1.9.0,<2.0.0)",
             "pydantic (>=2.10.6,<3.0.0)",
             "absl-py (>=2.2.1,<3.0.0)",
