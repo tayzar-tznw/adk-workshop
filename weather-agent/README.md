@@ -48,19 +48,16 @@ weather-agent/
    cd weather-agent
    ```
 
-2. Install dependencies:
+2. Install dependencies and activate environment:
    ```bash
-   pip install -e .
+   poetry install
+   eval $( poetry env activate)
    ```
 
 3. Set up environment variables:
-   - Create a `.env` file in the project root
-   - Add your API keys:
-     ```
-     GOOGLE_API_KEY=your_google_api_key
-     OPENAI_API_KEY=your_openai_api_key
-     ANTHROPIC_API_KEY=your_anthropic_api_key
-     ```
+   - Create a `.env` file in the project root.
+   - Fill in the necessary variables based on `.env.sample`
+   - Run `set -a ; . ./.env ; set +a` in bash to load all the environment variables
 
 ### Running the Agent
 
@@ -108,17 +105,3 @@ Key deployment features:
 - Persistent sessions
 - Monitoring and logging
 - API access
-
-To deploy the agent:
-
-```bash
-# Install deployment dependencies
-pip install -e ".[deployment]"
-
-# Deploy the agent
-python -m weather_agent.deployment.deploy --create
-```
-
-## License
-
-This project is licensed under the Apache License 2.0 - see the LICENSE file for details.

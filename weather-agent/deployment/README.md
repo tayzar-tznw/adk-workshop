@@ -13,8 +13,6 @@ Before deploying the Weather Agent, ensure you have the following:
    - `GOOGLE_CLOUD_LOCATION`: The Google Cloud region (e.g., "us-central1")
    - `GOOGLE_CLOUD_STORAGE_BUCKET`: The name of your GCS bucket (without "gs://")
    - `GOOGLE_API_KEY`: Your Google API key for Gemini models
-   - Optional: `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` if using those models
-
    A template `.env.example` file is provided in this directory. You can copy it to `.env` and fill in your values:
 
    ```bash
@@ -28,13 +26,12 @@ Before deploying the Weather Agent, ensure you have the following:
 
 ### 1. Install Dependencies
 
-Make sure you have the deployment dependencies installed:
+Make sure you have installed in the root directory:
+/adk-workshop/weather-agent
 
 ```bash
-pip install -e ".[deployment]"
+poetry install "deployment"
 ```
-
-This will install the required packages like `absl-py` and `cloudpickle`.
 
 ### Example Deployment Script
 
@@ -78,7 +75,7 @@ To test the deployed agent with a simple query:
 ```bash
 python -m weather_agent.deployment.deploy \
   --quicktest \
-  --resource_id=projects/your-project-id/locations/us-central1/reasoningEngines/your-resource-id
+  --resource_id=your-resource-id
 ```
 
 This will send a test message ("What's the weather in London?") to the agent and print the response.
@@ -88,9 +85,9 @@ This will send a test message ("What's the weather in London?") to the agent and
 When you're done with the deployment, you can delete it:
 
 ```bash
-python -m weather_agent.deployment.deploy \
+poetry run python -m weather_agent.deployment.deploy \
   --delete \
-  --resource_id=projects/your-project-id/locations/us-central1/reasoningEngines/your-resource-id
+  --resource_id=your-resource-id
 ```
 
 ## Deployment Architecture
