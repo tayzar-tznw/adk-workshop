@@ -76,17 +76,16 @@ def deploy_agent():
     remote_agent = agent_engines.create(
         app,
         requirements=[
-            "google-adk (>=0.0.2)",
-            "google-cloud-aiplatform[agent_engines] @ git+https://github.com/googleapis/python-aiplatform.git@copybara_738852226",
+            "google-adk (==0.5.0)",
+            "google-cloud-aiplatform[agent_engines] (==1.94.0)",
             "google-genai (>=1.9.0,<2.0.0)",
             "pydantic (>=2.10.6,<3.0.0)",
             "absl-py (>=2.2.1,<3.0.0)",
-            "python-dotenv (>=1.0.1,<2.0.0)",
-            "litellm (>=1.0.0,<2.0.0)",
+            "python-dotenv (>=1.0.1,<2.0.0)"
         ],
         extra_packages=[
             "./weather_agent",  # The main package
-        ],
+        ]
     )
     
     resource_name = remote_agent.resource_name
