@@ -18,7 +18,6 @@
 import os
 import sys
 import time
-from dotenv import load_dotenv
 import vertexai
 from vertexai import agent_engines
 from vertexai.preview.reasoning_engines import AdkApp
@@ -170,17 +169,13 @@ def delete_agent(resource_name):
 
 def main():
     """Main function to demonstrate deployment workflow."""
-    # Load environment variables from .env file
-    load_dotenv()
-    
     # Check if required environment variables are set
     if not check_environment():
         return
     
     try:
         # Deploy the agent
-        # resource_name = deploy_agent()
-        resource_name = "1287686445800095744"
+        resource_name = deploy_agent()
         
         # Test the agent
         test_agent(resource_name)
