@@ -145,7 +145,6 @@ def main(argv: list[str]) -> None:
         send_message(FLAGS.resource_id, "Hey")
     else:
         print("Unknown command")
-# 1287686445800095744 
 
 if __name__ == "__main__":
     app.run(main)
