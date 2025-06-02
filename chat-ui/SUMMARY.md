@@ -57,28 +57,84 @@ We've created a complete solution for deploying the Chat UI application to Googl
    ```
    Note the URL of the deployed application, which will be displayed in the build output and in the Cloud Run console.
 
-3. **Test the Deployment**
+3. **Create a Custom Service Account for Cloud Run (Recommended for Production)**
+   ```bash
+   # Create a new service account for the Chat UI application
+   gcloud iam service-accounts create agent-deny-sa \
+     --display-name="Agent Deny Service Account" \
+     --description="Service account for demonstrating accessing denial"
+
+   gcloud iam service-accounts create agent-allowed-sa \
+     --display-name="Agent Allow Service Account" \
+     --description="Service account for demonstrating accessing approval"
+
+   # Grant Vertex AI User role for accessing Agent Engine
+   gcloud projects add-iam-policy-binding your-project-id \
+     --member=serviceAccount:agent-allowed-sa@your-project-id.iam.gserviceaccount.com \
+     --role=roles/aiplatform.user
+
+   gcloud projects add-iam-policy-binding development-459201 \
+     --member=serviceAccount:agent-allowed-sa@development-459201.iam.gserviceaccount.com \
+     --role=roles/aiplatform.user
+
+   # Grant the Cloud Build service account permission to act as the custom service account
+   CLOUDBUILD_SA=$(gcloud projects get-iam-policy your-project-id \
+     --filter="(bindings.role:roles/cloudbuild.builds.builder)" \
+     --format="value(bindings.members)" | grep serviceAccount | sed "s/serviceAccount://")
+
+   gcloud iam service-accounts add-iam-policy-binding agent-deny-sa@your-project-id.iam.gserviceaccount.com \
+     --member="serviceAccount:${CLOUDBUILD_SA}" \
+     --role="roles/iam.serviceAccountUser"
+
+   gcloud iam service-accounts add-iam-policy-binding agent-allowed-sa@your-project-id.iam.gserviceaccount.com \
+     --member="serviceAccount:${CLOUDBUILD_SA}" \
+     --role="roles/iam.serviceAccountUser"
+
+   # Update an existing Cloud Run service to use the custom service account
+   gcloud run services update chat-ui \
+     --service-account chat-ui-sa@your-project-id.iam.gserviceaccount.com \
+     --region your-region
+
+   # Deploy using Cloud Build with the custom service account
+   gcloud builds submit --config=cloudbuild-custom-sa.yaml
+   ```
+   This step follows the principle of least privilege and provides better security and access control for your production deployment.
+
+4. **Test the Deployment**
    ```bash
    python test_deployment.py --url "https://chat-ui-abcdef-uc.a.run.app" --agent "projects/your-project-id/locations/your-location/agents/your-agent-id"
    ```
 
-4. **Access the Application**
+5. **Access the Application**
    Open the Cloud Run URL in your browser and start chatting with your agent!
 
 ## Troubleshooting
 
 If you encounter any issues:
 
-1. Check the logs in Cloud Run
+1. **Permission 'iam.serviceaccounts.actAs' denied**: This is a common error when using custom service accounts with Cloud Build. Make sure you've granted the Cloud Build service account permission to act as your custom service account:
+   ```bash
+   # Get the Cloud Build service account email
+   CLOUDBUILD_SA=$(gcloud projects get-iam-policy your-project-id \
+     --filter="(bindings.role:roles/cloudbuild.builds.builder)" \
+     --format="value(bindings.members)" | grep serviceAccount | sed "s/serviceAccount://")
+
+   # Grant the Cloud Build service account permission to act as the custom service account
+   gcloud iam service-accounts add-iam-policy-binding agent-deny-sa@your-project-id.iam.gserviceaccount.com \
+     --member="serviceAccount:${CLOUDBUILD_SA}" \
+     --role="roles/iam.serviceAccountUser"
+   ```
+
+2. Check the logs in Cloud Run
    ```bash
    gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=chat-ui" --limit=50
    ```
 
-2. Verify your environment variables are set correctly
+3. Verify your environment variables are set correctly
 
-3. Ensure your service account has the necessary permissions
+4. Ensure your service account has the necessary permissions
 
-4. Check that your agent is deployed correctly and accessible
+5. Check that your agent is deployed correctly and accessible
 
 ## Why Cloud Build?
 

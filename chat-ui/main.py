@@ -18,18 +18,16 @@ st.set_page_config(
 def init_vertex_ai():
     project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
     location = os.getenv("GOOGLE_CLOUD_LOCATION")
-    bucket = os.getenv("GOOGLE_CLOUD_STORAGE_BUCKET")
 
-    if not project_id or not location or not bucket:
-        st.error("Missing required environment variables. Please set GOOGLE_CLOUD_PROJECT, GOOGLE_CLOUD_LOCATION, and GOOGLE_CLOUD_STORAGE_BUCKET.")
+    if not project_id or not location:
+        st.error("Missing required environment variables. Please set GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION")
         st.stop()
 
     vertexai.init(
         project=project_id,
-        location=location,
-        staging_bucket=f"gs://{bucket}",
+        location=location
     )
-    return project_id, location, bucket
+    return project_id, location
 
 # Initialize session state
 def init_session_state():
@@ -123,7 +121,7 @@ def send_message(message):
 # Main app
 def main():
     # Initialize Vertex AI
-    project_id, location, bucket = init_vertex_ai()
+    project_id, location = init_vertex_ai()
 
     # Initialize session state
     init_session_state()
@@ -153,7 +151,6 @@ def main():
         st.subheader("Environment")
         st.write(f"Project ID: {project_id}")
         st.write(f"Location: {location}")
-        st.write(f"Bucket: {bucket}")
 
         if st.session_state.session_id:
             st.write(f"Session ID: {st.session_state.session_id}")
