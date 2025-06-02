@@ -135,7 +135,9 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/service-account-key.json
 
 ### For Cloud Run Deployment
 
-1. Assign the necessary IAM roles to the Cloud Run service account:
+#### Option 1: Using the Default Service Account (Simple)
+
+1. Assign the necessary IAM roles to the default Cloud Run service account:
    - Vertex AI User
    - Storage Object Viewer (if accessing files in Cloud Storage)
 
@@ -147,6 +149,132 @@ gcloud projects add-iam-policy-binding your-project-id \
 gcloud projects add-iam-policy-binding your-project-id \
   --member=serviceAccount:your-project-number-compute@developer.gserviceaccount.com \
   --role=roles/storage.objectViewer
+```
+
+#### Option 2: Creating a Custom Service Account (Recommended for Production)
+
+Creating a custom service account for your Chat UI Cloud Run service follows the principle of least privilege and provides better security and access control:
+
+1. Create custom service accounts:
+
+```bash
+# For demonstration purposes, we'll create two service accounts:
+# - agent-deny-sa: A service account without proper permissions (will fail)
+# - agent-allowed-sa: A service account with proper permissions (will succeed)
+
+# Create a service account for demonstrating access denial
+gcloud iam service-accounts create agent-deny-sa \
+  --display-name="Agent Deny Service Account" \
+  --description="Service account for demonstrating access denial"
+
+# Create a service account for demonstrating access approval
+gcloud iam service-accounts create agent-allowed-sa \
+  --display-name="Agent Allow Service Account" \
+  --description="Service account for demonstrating access approval"
+```
+
+> **Note**: In a real production environment, you would typically create a single service account with the appropriate permissions, such as `chat-ui-sa`. The two service accounts created here are for demonstration purposes to show how access management works.
+
+2. Assign the necessary IAM roles to the custom service accounts:
+
+```bash
+# For the agent-allowed-sa (the one that will work)
+# Grant Vertex AI User role for accessing Agent Engine
+gcloud projects add-iam-policy-binding your-project-id \
+  --member=serviceAccount:agent-allowed-sa@your-project-id.iam.gserviceaccount.com \
+  --role=roles/aiplatform.user
+# Note: We intentionally don't assign roles to agent-deny-sa to demonstrate access denial
+```
+
+3. Grant the Cloud Build service account permission to act as the custom service accounts:
+
+```bash
+# Get the Cloud Build service account email
+CLOUDBUILD_SA=$(gcloud projects get-iam-policy your-project-id \
+  --filter="(bindings.role:roles/cloudbuild.builds.builder)" \
+  --format="value(bindings.members)" | grep serviceAccount | sed "s/serviceAccount://")
+
+# If the above command doesn't work, you can manually specify the Cloud Build service account
+# CLOUDBUILD_SA="your-project-number@cloudbuild.gserviceaccount.com"
+
+# Grant the Cloud Build service account permission to act as both service accounts
+# This is the critical step that resolves the "iam.serviceaccounts.actAs" permission error
+
+# For agent-deny-sa
+gcloud iam service-accounts add-iam-policy-binding agent-deny-sa@your-project-id.iam.gserviceaccount.com \
+  --member="serviceAccount:${CLOUDBUILD_SA}" \
+  --role="roles/iam.serviceAccountUser"
+
+# For agent-allowed-sa
+gcloud iam service-accounts add-iam-policy-binding agent-allowed-sa@your-project-id.iam.gserviceaccount.com \
+  --member="serviceAccount:${CLOUDBUILD_SA}" \
+  --role="roles/iam.serviceAccountUser"
+```
+
+4. Update your Cloud Run deployment command to use the custom service accounts:
+
+For manual deployment:
+```bash
+# Deploy with agent-deny-sa (will fail due to missing permissions)
+gcloud run deploy chat-ui-deny \
+  --image gcr.io/your-project-id/chat-ui:latest \
+  --platform managed \
+  --region your-region \
+  --service-account agent-deny-sa@your-project-id.iam.gserviceaccount.com \
+  --allow-unauthenticated \
+  --set-env-vars GOOGLE_CLOUD_PROJECT=your-project-id,GOOGLE_CLOUD_LOCATION=your-location,GOOGLE_CLOUD_STORAGE_BUCKET=your-bucket-name
+
+# Deploy with agent-allowed-sa (will succeed with proper permissions)
+gcloud run deploy chat-ui-allow \
+  --image gcr.io/your-project-id/chat-ui:latest \
+  --platform managed \
+  --region your-region \
+  --service-account agent-allowed-sa@your-project-id.iam.gserviceaccount.com \
+  --allow-unauthenticated \
+  --set-env-vars GOOGLE_CLOUD_PROJECT=your-project-id,GOOGLE_CLOUD_LOCATION=your-location,GOOGLE_CLOUD_STORAGE_BUCKET=your-bucket-name
+```
+
+For Cloud Build deployment, you can use the provided `cloudbuild-custom-sa.yaml` file which includes the service account configuration:
+
+```bash
+# Deploy using Cloud Build with custom service account
+gcloud builds submit --config=cloudbuild-custom-sa.yaml
+```
+
+The `cloudbuild-custom-sa.yaml` file includes the following configuration for the service account:
+
+```yaml
+steps:
+  # ... other steps ...
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: Deploy
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'chat-ui'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/chat-ui:latest'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--service-account'
+      - 'agent-deny-sa@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=${_REGION},GOOGLE_CLOUD_STORAGE_BUCKET=${_BUCKET}'
+```
+
+> **Note**: The deployment using `agent-deny-sa` will fail with the error "Permission 'iam.serviceaccounts.actAs' denied" if you haven't completed step 3 above to grant the Cloud Build service account permission to act as the custom service accounts.
+
+5. If you need to grant additional permissions for specific Agent Engine features, you can add more granular roles:
+
+```bash
+# For accessing specific Agent Engine features (for agent-allowed-sa)
+gcloud projects add-iam-policy-binding your-project-id \
+  --member=serviceAccount:agent-allowed-sa@your-project-id.iam.gserviceaccount.com \
+  --role=roles/aiplatform.agentEndpointUser
 ```
 
 ## Testing the Deployed Application
@@ -205,13 +333,39 @@ python -m weather_agent.deployment.deploy --create
 
 ### Common Issues
 
-1. **Authentication Errors**: Ensure that the service account has the necessary permissions.
+1. **Permission 'iam.serviceaccounts.actAs' denied**: This error occurs when the Cloud Build service account doesn't have permission to act as the custom service account. To fix this:
 
-2. **Missing Environment Variables**: Verify that all required environment variables are set.
+   ```bash
+   # Get the Cloud Build service account email
+   
+   CLOUDBUILD_SA=$(gcloud projects get-iam-policy your-project-id \
+     --filter="(bindings.role:roles/cloudbuild.builds.builder)" \
+     --format="value(bindings.members)" | grep serviceAccount | sed "s/serviceAccount://")
 
-3. **Agent Not Found**: Double-check the agent resource name format.
+   # Grant the Cloud Build service account permission to act as the custom service account
+   gcloud iam service-accounts add-iam-policy-binding your-custom-sa@your-project-id.iam.gserviceaccount.com \
+     --member="serviceAccount:${CLOUDBUILD_SA}" \
+     --role="roles/iam.serviceAccountUser"
+   
+    CLOUDBUILD_SA=$(gcloud projects get-iam-policy development-459201 \
+     --filter="(bindings.role:roles/cloudbuild.builds.builder)" \
+     --format="value(bindings.members)" | grep serviceAccount | sed "s/serviceAccount://")
 
-4. **Connection Issues**: Ensure that the necessary APIs are enabled in your Google Cloud project.
+   # Grant the Cloud Build service account permission to act as the custom service account
+   gcloud iam service-accounts add-iam-policy-binding agent-deny-sa@development-459201.iam.gserviceaccount.com \
+     --member="serviceAccount:1017461389635-compute@developer.gserviceaccount.com" \
+     --role="roles/iam.serviceAccountUser"
+   ```
+
+   Make sure to replace `your-custom-sa` with the actual service account name (e.g., `agent-deny-sa` or `agent-allowed-sa`).
+
+2. **Authentication Errors**: Ensure that the service account has the necessary permissions for accessing Vertex AI and other required services.
+
+3. **Missing Environment Variables**: Verify that all required environment variables are set.
+
+4. **Agent Not Found**: Double-check the agent resource name format.
+
+5. **Connection Issues**: Ensure that the necessary APIs are enabled in your Google Cloud project.
 
 ### Viewing Logs
 
