@@ -1,0 +1,46 @@
+steps:
+  # Step 1: Build the container image
+  # Using cache-from to speed up builds using layers from previous builds
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Build
+    args:
+      - 'build'
+      - '--tag=gcr.io/$PROJECT_ID/chat-ui:latest'
+      - '--cache-from=gcr.io/$PROJECT_ID/chat-ui:latest'
+      - '.'
+
+  # Step 2: Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Push
+    args: ['push', 'gcr.io/$PROJECT_ID/chat-ui:latest']
+    waitFor: ['Build']
+
+  # Step 3: Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: Deploy
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'chat-ui'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/chat-ui:latest'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=${_REGION},GOOGLE_CLOUD_STORAGE_BUCKET=${_BUCKET}'
+    waitFor: ['Push']
+
+# Build options
+options:
+  machineType: 'E2_HIGHCPU_32'  # Using a high-CPU machine for faster builds
+
+substitutions:
+  _REGION: us-central1  # default region
+  _BUCKET: your-bucket-name  # default bucket name
+
+images:
+  - 'gcr.io/$PROJECT_ID/chat-ui:latest'
