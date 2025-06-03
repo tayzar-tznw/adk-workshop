@@ -15,7 +15,6 @@
 """Deployment script for Weather Agent."""
 
 import os
-import sys
 
 
 from absl import app, flags
@@ -24,6 +23,7 @@ from weather_agent.agent import root_agent
 import vertexai
 from vertexai import agent_engines
 from vertexai.preview.reasoning_engines import AdkApp
+import asyncio
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("project_id", None, "GCP project ID.")
@@ -49,8 +49,8 @@ def create(env_vars: dict[str, str]) -> None:
     remote_agent = agent_engines.create(
         app,
         requirements=[
-            "google-adk (>=0.0.2)",
-            "google-cloud-aiplatform[agent_engines] @ git+https://github.com/googleapis/python-aiplatform.git@copybara_738852226",
+            "google-adk (==1.1.0)",
+            "google-cloud-aiplatform[agent_engines] (==1.95.0)",
             "google-genai (>=1.9.0,<2.0.0)",
             "pydantic (>=2.10.6,<3.0.0)",
             "absl-py (>=2.2.1,<3.0.0)",
@@ -72,19 +72,19 @@ def delete(resource_id: str) -> None:
     print(f"Deleted remote agent: {resource_id}")
 
 
-def send_message(resource_id: str, message: str) -> None:
+async def send_message(resource_id: str, message: str) -> None:
     """Send a message to the deployed agent."""
     remote_agent = agent_engines.get(resource_id)
     
     # Create a session with initial state for temperature unit preference
     initial_state = {"user_preference_temperature_unit": "Celsius"}
-    session = remote_agent.create_session(
+    session = await remote_agent.create_session(
         user_id="weather_user_001",
         state=initial_state
     )
     
     print(f"Trying remote agent: {resource_id}")
-    for event in remote_agent.stream_query(
+    async for event in remote_agent.stream_query(
         user_id="weather_user_001",
         session_id=session["id"],
         message=message,
@@ -142,7 +142,7 @@ def main(argv: list[str]) -> None:
         if not FLAGS.resource_id:
             print("resource_id is required for quicktest")
             return
-        send_message(FLAGS.resource_id, "Hey")
+        asyncio.run(send_message(FLAGS.resource_id, "Hey"))
     else:
         print("Unknown command")
 

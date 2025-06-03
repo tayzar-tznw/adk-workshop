@@ -46,7 +46,7 @@ Ensure you have the following:
     - `GOOGLE_CLOUD_LOCATION`: The Google Cloud region (e.g., "us-central1")
     - `GOOGLE_CLOUD_STORAGE_BUCKET`: The name of your GCS bucket (without "gs://")
     - `GOOGLE_API_KEY`: Your Google API key for Gemini models
-4. **Python Environment**: Python 3.11+ with the dependencies listed in pyproject.toml.
+4. **Python Environment**: Python 3.9-3.11  with the dependencies listed in pyproject.toml.
 
 ### Installation
 
@@ -98,7 +98,7 @@ runner = Runner(
 )
 ```
 
-## Deployment
+### Deployment
 
 The Weather Agent can be deployed to Google Cloud using Vertex AI Agent Engines. This allows you to host the agent in the cloud and make it accessible via API.
 
