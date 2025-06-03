@@ -19,10 +19,13 @@ from google.adk.tools.agent_tool import AgentTool
 from travel_concierge.shared_libraries.types import DestinationIdeas, POISuggestions, json_response_config
 from travel_concierge.sub_agents.inspiration import prompt
 from travel_concierge.tools.places import map_tool
+from google.adk.tools.langchain_tool import LangchainTool
+from langchain_community.tools import WikipediaQueryRun
+from langchain_community.utilities import WikipediaAPIWrapper
 
 
 place_agent = Agent(
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash-preview-05-20",
     name="place_agent",
     instruction=prompt.PLACE_AGENT_INSTR,
     description="This agent suggests a few destination given some user preferences",
@@ -34,7 +37,7 @@ place_agent = Agent(
 )
 
 poi_agent = Agent(
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash-preview-05-20",
     name="poi_agent",
     description="This agent suggests a few activities and points of interests given a destination",
     instruction=prompt.POI_AGENT_INSTR,
@@ -46,9 +49,9 @@ poi_agent = Agent(
 )
 
 inspiration_agent = Agent(
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash-preview-05-20",
     name="inspiration_agent",
     description="A travel inspiration agent who inspire users, and discover their next vacations; Provide information about places, activities, interests,",
     instruction=prompt.INSPIRATION_AGENT_INSTR,
-    tools=[AgentTool(agent=place_agent), AgentTool(agent=poi_agent), map_tool],
+    tools=[AgentTool(agent=place_agent), AgentTool(agent=poi_agent), map_tool, LangchainTool(tool=WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper()))],
 )
